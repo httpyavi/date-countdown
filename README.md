@@ -2,6 +2,8 @@
 
 An event countdown timer meticulously designed for an iOS-inspired aesthetic. Built with a focus on typography and fluid motion, this timer is synchronized specifically to ***Philippine Standard Time (Manila, UTC+8)***, ensuring accuracy regardless of the user's local device settings.
 
+View the countdown: https://httpyavi.github.io/date-countdown/
+
 ## ✨ Features
 
 * **Manila Time Sync**: Automatically offsets UTC time to Philippine Standard Time (PHT).
