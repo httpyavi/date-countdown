@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manila Countdown</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --card-bg: #1a1a1a;
+            --text-color: #ffffff;
+            
+            /* Enhanced fluid scaling for extreme responsiveness (iPhone SE to Desktop) */
+            --card-width: clamp(65px, 18vw, 140px);
+            --card-height: clamp(85px, 22vw, 160px);
+            --font-size: clamp(38px, 12vw, 85px);
+            
+            /* Fluid celebration scaling */
+            --celebration-font: clamp(2rem, 10vw, 6rem);
+            --celebration-subfont: clamp(0.9rem, 4vw, 2.2rem);
+            
+            /* Responsive gaps */
+            --grid-gap: clamp(8px, 2.5vw, 40px);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #fireworks-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 1;
+        }
+
+        .main-content { 
+            position: relative; 
+            z-index: 10; 
+            width: 100%; 
+            max-width: 100vw;
+            padding: 1rem;
+            transition: all 1s ease; 
+        }
+
+        /* iOS Style Mode Switcher */
+        .mode-switcher {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 4px;
+            border-radius: 14px;
+            display: flex;
+            gap: 2px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: clamp(1.5rem, 5vh, 2.5rem);
+            backdrop-filter: blur(15px);
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        .mode-btn {
+            padding: clamp(6px, 1.5vw, 10px) clamp(12px, 2.5vw, 22px);
+            border-radius: 10px;
+            font-size: clamp(0.65rem, 1.5vw, 0.75rem);
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .mode-btn.active {
+            background: #ffffff;
+            color: #000000;
+            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Modal Overlay */
+        #modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #modal-overlay.active { display: flex; opacity: 1; }
+
+        .modal-content {
+            background: #1c1c1e;
+            width: 90%;
+            max-width: 400px;
+            padding: clamp(20px, 5vw, 30px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #modal-overlay.active .modal-content { transform: scale(1); }
+        .modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; text-align: center; color: white; }
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #8e8e93; margin-bottom: 6px; font-weight: 600; }
+        .modal-content input { width: 100%; background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 12px; color: white; padding: 10px 14px; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+        .modal-content input:focus { border-color: #ffffff; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .modal-btn { flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: background 0.2s; text-align: center; }
+        .btn-primary { background: #ffffff; color: #000000; }
+        .btn-secondary { background: #2c2c2e; color: #ffffff; }
+
+        /* Edit Button */
+        #edit-custom-btn {
+            display: none;
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 0.65rem;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        #edit-custom-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+        /* Countdown Card */
+        .countdown-card {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-width: var(--card-width);
+            width: fit-content;
+            height: var(--card-height);
+            border-radius: clamp(8px, 2vw, 16px);
+            background: linear-gradient(145deg, #222, #111);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255,255,255,0.1);
+            padding: 0 10px;
+            transition: all 0.5s ease;
+        }
+
+        .card-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: var(--font-size);
+            font-weight: 700;
+            color: #fff;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .animate-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.08); filter: brightness(1.4); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+
+        .unit-wrapper { display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 1.5vw, 16px); }
+        .unit-label { font-size: clamp(0.55rem, 1.2vw, 0.75rem); text-transform: uppercase; letter-spacing: clamp(0.2em, 0.4vw, 0.45em); color: #fff; font-weight: 700; opacity: 0.4; }
+        .manila-badge { background: rgba(255, 255, 255, 0.1); padding: 8px 18px; border-radius: 100px; font-size: clamp(0.55rem, 1.5vw, 0.7rem); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; letter-spacing: 0.25em; text-transform: uppercase; font-weight: 700; }
+        
+        #local-time-display { transition: opacity 0.8s ease; }
+
+        .countdown-container {
+            display: flex;
+            flex-wrap: nowrap; /* Prevent wrapping on very small screens */
+            justify-content: center;
+            gap: var(--grid-gap);
+            width: 100%;
+        }
+
+        footer {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: clamp(0.55rem, 1.2vw, 0.65rem);
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: rgba(255, 255, 255, 0.2);
+            z-index: 10;
+            font-weight: 600;
+        }
+
+        /* Celebration State */
+        .celebration-mode .countdown-container { transform: scale(0.65); opacity: 0.2; pointer-events: none; }
+        .celebration-mode .mode-switcher, 
+        .celebration-mode #local-time-display,
+        .celebration-mode .manila-badge,
+        .celebration-mode #edit-custom-btn { opacity: 0 !important; pointer-events: none; transform: translateY(-20px); }
+    </style>
+</head>
+<body>
+
+    <canvas id="fireworks-canvas"></canvas>
+
+    <!-- Custom Modal -->
+    <div id="modal-overlay">
+        <div class="modal-content">
+            <h2 class="modal-title">Custom Countdown</h2>
+            <div class="input-group">
+                <label>Event Name (Countdown to...)</label>
+                <input type="text" id="custom-title-input" placeholder="e.g. My Birthday" maxlength="20">
+            </div>
+            <div class="input-group">
+                <label>Celebration Message (When it hits 0)</label>
+                <input type="text" id="custom-msg-input" placeholder="e.g. Happy Birthday!" maxlength="30">
+            </div>
+            <div class="input-group">
+                <label>Date and Time</label>
+                <input type="datetime-local" id="custom-date-input">
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="modal-btn btn-primary" onclick="applyCustomSettings()">Set Countdown</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-wrapper" class="main-content flex flex-col items-center">
+        
+        <div class="mode-switcher" id="mode-switcher">
+            <div class="mode-btn active" onclick="setMode('newyear')">New Year</div>
+            <div class="mode-btn" onclick="setMode('christmas')">Christmas</div>
+            <div class="mode-btn" onclick="setMode('custom')">Custom</div>
+        </div>
+
+        <div class="flex flex-col items-center gap-6 text-center mb-8 md:mb-16">
+            <div id="badge" class="manila-badge">Philippine Standard Time</div>
+            <div class="flex flex-col items-center gap-3">
+                <h1 id="year-title" class="text-2xl md:text-6xl font-light tracking-tighter text-gray-400 transition-all duration-1000">
+                    COUNTDOWN TO <span class="text-white font-bold" id="next-event-title">----</span>
+                </h1>
+                <div id="edit-custom-btn" onclick="openModal()">Edit Event Settings</div>
+            </div>
+        </div>
+
+        <div id="cards-container" class="countdown-container transition-all duration-1000">
+            <div class="unit-wrapper">
+                <div class="countdown-card" id="card-days"><span class="card-text" id="val-days">00</span></div>
+                <span class="unit-label">Days</span>
+            </div>
+            <div class="unit-wrapper">
+                <div class="countdown-card" id="card-hours"><span class="card-text" id="val-hours">00</span></div>
+                <span class="unit-label">Hours</span>
+            </div>
+            <div class="unit-wrapper">
+                <div class="countdown-card" id="card-minutes"><span class="card-text" id="val-minutes">00</span></div>
+                <span class="unit-label">Mins</span>
+            </div>
+            <div class="unit-wrapper">
+                <div class="countdown-card" id="card-seconds"><span class="card-text" id="val-seconds">00</span></div>
+                <span class="unit-label">Secs</span>
+            </div>
+        </div>
+
+        <div id="local-time-display" class="text-[9px] md:text-[11px] font-mono text-gray-600 mt-12 md:mt-20 tracking-[0.4em] md:tracking-[0.6em] uppercase">
+            Syncing Manila Time...
+        </div>
+    </div>
+
+    <footer>MADE BY HTTPYAVI ❤️</footer>
+
+    <script>
+        const unitState = { days: '', hours: '', minutes: '', seconds: '' };
+        const localTimeDisplay = document.getElementById('local-time-display');
+        const yearTitle = document.getElementById('year-title');
+        const mainWrapper = document.getElementById('main-wrapper');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const customTitleInput = document.getElementById('custom-title-input');
+        const customMsgInput = document.getElementById('custom-msg-input');
+        const customDateInput = document.getElementById('custom-date-input');
+        const editCustomBtn = document.getElementById('edit-custom-btn');
+        
+        let currentMode = 'newyear', isCelebrating = false, fireworksActive = false;
+        let savedCustomTitle = "CUSTOM EVENT";
+        let savedCustomMessage = "TIME'S UP!";
+        let savedCustomDate = null;
+
+        function setMode(mode) {
+            if (isCelebrating) resetCelebration();
+            currentMode = mode;
+            
+            if (mode === 'custom') {
+                if (!savedCustomDate) openModal();
+                editCustomBtn.style.display = 'block';
+            } else {
+                editCustomBtn.style.display = 'none';
+            }
+
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText.toLowerCase().replace(' ', '') === mode);
+            });
+            updateCountdown();
+        }
+
+        function openModal() { modalOverlay.classList.add('active'); }
+
+        function closeModal() {
+            modalOverlay.classList.remove('active');
+            if (currentMode === 'custom' && !savedCustomDate) setMode('newyear');
+        }
+
+        function applyCustomSettings() {
+            savedCustomTitle = (customTitleInput.value || "CUSTOM EVENT").toUpperCase();
+            savedCustomMessage = (customMsgInput.value || "TIME'S UP!").toUpperCase();
+            savedCustomDate = customDateInput.value ? new Date(customDateInput.value) : null;
+            closeModal();
+            updateCountdown();
+        }
+
+        function resetCelebration() {
+            isCelebrating = false;
+            mainWrapper.classList.remove('celebration-mode');
+            document.getElementById('badge').style.opacity = '1';
+            yearTitle.innerHTML = `COUNTDOWN TO <span class="text-white font-bold" id="next-event-title">----</span>`;
+            if (currentMode === 'custom') editCustomBtn.style.display = 'block';
+        }
+
+        function getManilaTime() {
+            const now = new Date();
+            return new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + (8 * 3600000));
+        }
+
+        function updateCardDisplay(unit, newValue) {
+            if (unitState[unit] === newValue) return;
+            unitState[unit] = newValue;
+
+            const card = document.getElementById(`card-${unit}`);
+            const valSpan = document.getElementById(`val-${unit}`);
+            
+            valSpan.innerText = newValue;
+
+            card.classList.remove('animate-pop');
+            void card.offsetWidth; 
+            card.classList.add('animate-pop');
+        }
+
+        function updateCountdown() {
+            if (isCelebrating) return;
+            const manilaTime = getManilaTime();
+            const currentYear = manilaTime.getFullYear();
+            let targetDate, eventLabel;
+
+            if (currentMode === 'newyear') {
+                targetDate = new Date(currentYear + 1, 0, 1, 0, 0, 0);
+                eventLabel = (currentYear + 1).toString();
+            } else if (currentMode === 'christmas') {
+                targetDate = new Date(currentYear, 11, 25, 0, 0, 0);
+                if (manilaTime > targetDate) targetDate = new Date(currentYear + 1, 11, 25, 0, 0, 0);
+                eventLabel = "Christmas";
+            } else {
+                eventLabel = savedCustomTitle;
+                targetDate = savedCustomDate;
+            }
+
+            const titleSpan = document.getElementById('next-event-title');
+            if (titleSpan) titleSpan.textContent = eventLabel;
+
+            if (!targetDate) {
+                ['days', 'hours', 'minutes', 'seconds'].forEach(u => updateCardDisplay(u, '--'));
+                return;
+            }
+
+            const diff = targetDate - manilaTime;
+            if (diff <= 0) {
+                triggerCelebration(targetDate.getFullYear(), eventLabel);
+                return;
+            }
+
+            const d = Math.floor(diff / 86400000);
+            const h = Math.floor((diff / 3600000) % 24);
+            const m = Math.floor((diff / 60000) % 60);
+            const s = Math.floor((diff / 1000) % 60);
+
+            updateCardDisplay('days', String(d).padStart(2, '0'));
+            updateCardDisplay('hours', String(h).padStart(2, '0'));
+            updateCardDisplay('minutes', String(m).padStart(2, '0'));
+            updateCardDisplay('seconds', String(s).padStart(2, '0'));
+
+            localTimeDisplay.textContent = `Manila Time: ${manilaTime.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+        }
+
+        function triggerCelebration(year, label) {
+            if (isCelebrating) return;
+            isCelebrating = true;
+            mainWrapper.classList.add('celebration-mode');
+            
+            let mainText = label, subText = "";
+            if (currentMode === 'newyear') { 
+                mainText = year; 
+                subText = "Happy New Year!"; 
+            } else if (currentMode === 'christmas') { 
+                mainText = "MERRY CHRISTMAS"; 
+                subText = ""; 
+            } else { 
+                mainText = savedCustomMessage; 
+                subText = ""; 
+            }
+
+            yearTitle.innerHTML = `
+                <div class="flex flex-col gap-4 items-center px-4">
+                    <span class="text-yellow-400 font-bold block drop-shadow-[0_0_40px_rgba(250,204,21,0.5)] text-center" style="font-size: var(--celebration-font); line-height: 1.1;">${mainText}</span>
+                    ${subText ? `<span class="text-white font-bold tracking-[0.3em] block uppercase animate-bounce text-center" style="font-size: var(--celebration-subfont)">${subText}</span>` : ''}
+                </div>
+            `;
+            startFireworks();
+        }
+
+        // --- FIREWORKS ---
+        const canvas = document.getElementById('fireworks-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        function startFireworks() {
+            if (fireworksActive) return;
+            fireworksActive = true;
+            resize(); animate();
+            setInterval(createFirework, 450);
+        }
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize);
+        class Particle {
+            constructor(x, y, hue) {
+                this.x = x; this.y = y; this.hue = hue; this.alpha = 1;
+                this.velocity = { x: (Math.random()-0.5)*16, y: (Math.random()-0.5)*16 };
+                this.gravity = 0.12;
+            }
+            draw() {
+                ctx.save(); ctx.globalAlpha = this.alpha;
+                ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+                ctx.fillStyle = `hsl(${this.hue}, 100%, 65%)`;
+                ctx.shadowBlur = 15; ctx.shadowColor = `hsl(${this.hue}, 100%, 50%)`;
+                ctx.fill(); ctx.restore();
+            }
+            update() {
+                this.velocity.y += this.gravity;
+                this.x += this.velocity.x; this.y += this.velocity.y;
+                this.alpha -= 0.012;
+            }
+        }
+        function createFirework() {
+            const x = Math.random()*canvas.width, y = Math.random()*canvas.height*0.5;
+            const hue = Math.random()*360;
+            for(let i=0; i<90; i++) particles.push(new Particle(x, y, hue));
+        }
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.3)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            particles = particles.filter(p => p.alpha > 0);
+            particles.forEach(p => { p.update(); p.draw(); });
+        }
+        
+        setInterval(updateCountdown, 1000);
+        updateCountdown();
+    </script>
+</body>
+</html>
